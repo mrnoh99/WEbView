@@ -1,0 +1,50 @@
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #007aff, #00c6ff);
+  padding: 24px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1c1c1e;
+  max-width: 540px;
+  padding: 32px;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+h1 { margin-top: 0; font-size: 1.6rem; }
+code {
+  background: #f0f0f3;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+
+button {
+  appearance: none;
+  border: none;
+  background: #007aff;
+  color: white;
+  font-size: 1rem;
+  padding: 12px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+button:active { background: #0051d5; }
+
+.output { font-weight: 600; color: #007aff; min-height: 1.4em; }
+
+@media (prefers-color-scheme: dark) {
+  .card { background: #1c1c1e; color: #f2f2f7; }
+  code { background: #2c2c2e; }
+}
