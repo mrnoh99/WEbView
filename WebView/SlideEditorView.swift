@@ -28,8 +28,12 @@ struct SlideEditorView: View {
     @State private var editMode: EditorPanel = .content
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    init(document: RevealSlideDocument) {
+    /// 편집을 끝내고 돌아갈 동작. nil 이면 문서를 완전히 닫는다.
+    private let onClose: (() -> Void)?
+
+    init(document: RevealSlideDocument, onClose: (() -> Void)? = nil) {
         _model = StateObject(wrappedValue: SlideEditorViewModel(document: document))
+        self.onClose = onClose
     }
 
     enum EditorPanel: String, CaseIterable {
@@ -307,7 +311,15 @@ struct SlideEditorView: View {
     @ToolbarContentBuilder
     private var editorToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Button("완료") { store.closeCurrent() }
+            if let onClose {
+                Button {
+                    onClose()
+                } label: {
+                    Label("뷰어", systemImage: "chevron.left")
+                }
+            } else {
+                Button("완료") { store.closeCurrent() }
+            }
         }
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: 16) {

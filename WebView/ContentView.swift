@@ -14,7 +14,7 @@ struct ContentView: View {
                     recentsList
                 }
             }
-            .navigationTitle("슬라이드 편집기")
+            .navigationTitle("HTML 뷰어")
             .toolbar {
                 if !store.recents.isEmpty {
                     ToolbarItem(placement: .topBarLeading) {
@@ -88,7 +88,7 @@ struct ContentView: View {
 
     private var recentsList: some View {
         List {
-            Section("최근 프로젝트") {
+            Section("최근 파일") {
                 ForEach(store.recents) { item in
                     Button {
                         store.open(recent: item)
@@ -109,17 +109,17 @@ struct ContentView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "rectangle.stack.badge.play")
+            Image(systemName: "safari")
                 .font(.system(size: 64))
                 .foregroundStyle(.tint)
-            Text("슬라이드 HTML 편집")
+            Text("저장된 HTML 파일 열기")
                 .font(.title2.bold())
-            Text("‘열기’ → **폴더 열기**로 발표자료 폴더를 선택하세요.\nreveal.js 슬라이드(full.html 등)를 PowerPoint처럼 편집할 수 있습니다.\n예: AuSom-PU (index.html·full.html·vendor/reveal.js)")
+            Text("‘열기’로 Files 앱의 HTML 파일이나 폴더를 선택하면\nSafari 와 동일하게 표시됩니다.\nreveal.js 슬라이드라면 ‘편집’ 버튼으로 PowerPoint처럼\n편집할 수도 있습니다.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             openMenu {
-                Label("파일 열기", systemImage: "folder.badge.plus")
+                Label("열기", systemImage: "folder.badge.plus")
                     .padding(.horizontal, 8)
             }
             .buttonStyle(.borderedProminent)
@@ -135,7 +135,7 @@ private struct RecentRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "rectangle.stack")
+            Image(systemName: "doc.richtext")
                 .font(.title2)
                 .foregroundStyle(.tint)
                 .frame(width: 32)

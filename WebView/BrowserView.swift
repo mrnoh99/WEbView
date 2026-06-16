@@ -3,6 +3,8 @@ import SwiftUI
 /// 선택한 HTML 문서를 Safari 스타일의 크롬(상·하단 도구막대)과 함께 보여주는 뷰어.
 struct BrowserView: View {
     let document: OpenedDocument
+    /// 편집 가능한 문서일 때만 전달된다. nil 이면 편집 버튼을 숨긴다.
+    var onEdit: (() -> Void)? = nil
 
     @EnvironmentObject var store: RecentsStore
     @StateObject private var model = WebViewModel()
@@ -59,6 +61,13 @@ struct BrowserView: View {
         }
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: 16) {
+                if let onEdit {
+                    Button(action: onEdit) {
+                        Image(systemName: "square.and.pencil")
+                    }
+                    .accessibilityLabel("편집")
+                }
+
                 Button {
                     toggleFullscreen()
                 } label: {

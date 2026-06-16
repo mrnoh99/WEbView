@@ -1,36 +1,57 @@
 import SwiftUI
 
-/// 열린 문서의 편집/선택 화면.
+/// 열린 문서의 작업 공간. **뷰어가 기본**이며, 편집 가능한 문서(reveal.js 슬라이드)일 때
+/// 뷰어의 ‘편집’ 버튼으로 에디터에 진입한다.
 struct DocumentWorkspaceView: View {
     let document: OpenedDocument
 
     @EnvironmentObject var store: RecentsStore
-    @State private var mode: WorkspaceMode = .loading
+    @State private var mode: Mode = .viewer
+    @State private var editTarget: EditTarget = .none
 
-    private enum WorkspaceMode {
-        case loading
+    private enum Mode {
+        case viewer
         case editor(RevealSlideDocument)
         case deckPicker([URL])
-        case viewer
-        case error(String)
+    }
+
+    /// 현재 문서에서 편집 가능한 대상.
+    private enum EditTarget {
+        case none                       // 편집 불가 (일반 HTML)
+        case deck(RevealSlideDocument)  // 현재 문서 자체가 편집 가능한 덱
+        case candidates([URL])          // 같은 폴더의 편집 가능한 덱들
     }
 
     var body: some View {
         Group {
             switch mode {
-            case .loading:
-                ProgressView("불러오는 중…")
+            case .viewer:
+                BrowserView(document: document, onEdit: editAction)
             case .editor(let doc):
-                SlideEditorView(document: doc)
+                SlideEditorView(document: doc, onClose: { mode = .viewer })
             case .deckPicker(let urls):
                 deckPickerView(urls)
-            case .viewer:
-                BrowserView(document: document)
-            case .error(let message):
-                errorView(message)
             }
         }
-        .task { resolveWorkspace() }
+        .task { resolveEditability() }
+    }
+
+    /// 뷰어에 넘길 ‘편집’ 동작. 편집 대상이 없으면 nil → 버튼이 숨겨진다.
+    private var editAction: (() -> Void)? {
+        switch editTarget {
+        case .none:
+            return nil
+        case .deck(let doc):
+            return { mode = .editor(doc) }
+        case .candidates(let urls):
+            return {
+                if urls.count == 1, let only = urls.first {
+                    openDeck(only)
+                } else {
+                    mode = .deckPicker(urls)
+                }
+            }
+        }
     }
 
     private func deckPickerView(_ urls: [URL]) -> some View {
@@ -67,88 +88,37 @@ struct DocumentWorkspaceView: View {
                         }
                     }
                 }
-
-                Section {
-                    Button {
-                        mode = .viewer
-                    } label: {
-                        Label("뷰어로 index.html 보기", systemImage: "safari")
-                    }
-                }
             }
-            .navigationTitle(document.url.deletingLastPathComponent().lastPathComponent)
+            .navigationTitle("편집할 슬라이드")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("완료") { store.closeCurrent() }
+                    Button {
+                        mode = .viewer
+                    } label: {
+                        Label("뷰어", systemImage: "chevron.left")
+                    }
                 }
             }
         }
     }
 
-    private func errorView(_ message: String) -> some View {
-        NavigationStack {
-            Group {
-                if #available(iOS 17.0, *) {
-                    ContentUnavailableView {
-                        Label("열 수 없음", systemImage: "exclamationmark.triangle")
-                    } description: {
-                        Text(message)
-                    } actions: {
-                        Button("뷰어로 열기") { mode = .viewer }
-                        Button("닫기") { store.closeCurrent() }
-                    }
-                } else {
-                    VStack(spacing: 16) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 48))
-                            .foregroundStyle(.secondary)
-                        Text("열 수 없음").font(.title2.bold())
-                        Text(message)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        VStack(spacing: 8) {
-                            Button("뷰어로 열기") { mode = .viewer }
-                            Button("닫기") { store.closeCurrent() }
-                        }
-                        .padding(.top, 4)
-                    }
-                    .padding()
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("완료") { store.closeCurrent() }
-                }
-            }
-        }
-    }
+    // MARK: - 판별 / 진입
 
-    private func resolveWorkspace() {
-        do {
-            let reveal = try RevealSlideDocument.load(
-                from: document.url,
-                readAccessURL: document.readAccessURL
-            )
-            mode = .editor(reveal)
-            return
-        } catch SlideDocumentError.notRevealFormat {
-            // index.html 등 랜딩 페이지 — 아래에서 덱 목록 탐색
-        } catch {
-            mode = .error(error.localizedDescription)
+    /// 현재 문서가 편집 가능한지 조사해 editTarget 을 설정한다. (뷰어 표시는 그대로 유지)
+    private func resolveEditability() {
+        if let reveal = try? RevealSlideDocument.load(
+            from: document.url,
+            readAccessURL: document.readAccessURL
+        ) {
+            editTarget = .deck(reveal)
             return
         }
 
-        let bundleFolder = document.url.deletingLastPathComponent()
-        let decks = RevealSlideDocument.revealDeckURLs(in: bundleFolder)
-
-        if decks.isEmpty {
-            mode = .viewer
-        } else if decks.count == 1, let only = decks.first {
-            openDeck(only)
-        } else {
-            mode = .deckPicker(decks)
+        let folder = document.url.deletingLastPathComponent()
+        let decks = RevealSlideDocument.revealDeckURLs(in: folder)
+        if !decks.isEmpty {
+            editTarget = .candidates(decks)
         }
     }
 
@@ -157,7 +127,8 @@ struct DocumentWorkspaceView: View {
             let doc = try RevealSlideDocument.load(from: url, readAccessURL: document.readAccessURL)
             mode = .editor(doc)
         } catch {
-            mode = .error(error.localizedDescription)
+            store.errorMessage = error.localizedDescription
+            mode = .viewer
         }
     }
 
