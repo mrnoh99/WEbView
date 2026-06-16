@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var store: RecentsStore
-    @State private var showingPicker = false
+    @State private var pickerMode: DocumentPicker.Mode?
 
     var body: some View {
         NavigationStack {
@@ -16,10 +16,8 @@ struct ContentView: View {
             .navigationTitle("HTML 뷰어")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingPicker = true
-                    } label: {
-                        Label("파일 열기", systemImage: "folder.badge.plus")
+                    openMenu {
+                        Image(systemName: "plus")
                     }
                 }
                 if !store.recents.isEmpty {
@@ -37,16 +35,45 @@ struct ContentView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingPicker) {
-            DocumentPicker { url in
+        .sheet(item: $pickerMode) { mode in
+            DocumentPicker(mode: mode) { url in
                 store.open(externalURL: url)
             }
             .ignoresSafeArea()
         }
-        // 파일을 열면 전체 화면 뷰어 표시. 다른 앱에서 열기로 들어와도 동일.
         .fullScreenCover(item: $store.current) { document in
             BrowserView(document: document)
                 .environmentObject(store)
+        }
+        .alert(
+            "알림",
+            isPresented: Binding(
+                get: { store.errorMessage != nil },
+                set: { if !$0 { store.errorMessage = nil } }
+            ),
+            presenting: store.errorMessage
+        ) { _ in
+            Button("확인", role: .cancel) {}
+        } message: { message in
+            Text(message)
+        }
+    }
+
+    /// 파일/폴더 열기 선택 메뉴.
+    private func openMenu<Label: View>(@ViewBuilder label: () -> Label) -> some View {
+        Menu {
+            Button {
+                pickerMode = .file
+            } label: {
+                Label("HTML 파일 열기", systemImage: "doc")
+            }
+            Button {
+                pickerMode = .folder
+            } label: {
+                Label("폴더 열기 (리소스 포함)", systemImage: "folder")
+            }
+        } label: {
+            label()
         }
     }
 
@@ -80,13 +107,11 @@ struct ContentView: View {
                 .foregroundStyle(.tint)
             Text("저장된 HTML 파일 열기")
                 .font(.title2.bold())
-            Text("‘파일 열기’를 눌러 Files 앱에 저장된\nHTML 파일을 선택하세요.\n다른 앱의 공유 메뉴에서 ‘HTML 뷰어’를 선택해도 됩니다.")
+            Text("‘＋’를 눌러 Files 앱의 HTML 파일이나 폴더를 선택하세요.\n이미지·CSS·JS 가 함께 있는 페이지는 ‘폴더 열기’를 사용하면\n리소스까지 모두 표시됩니다.\n다른 앱의 공유 메뉴에서 ‘HTML 뷰어’를 선택해도 됩니다.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button {
-                showingPicker = true
-            } label: {
+            openMenu {
                 Label("파일 열기", systemImage: "folder.badge.plus")
                     .padding(.horizontal, 8)
             }
@@ -123,6 +148,15 @@ private struct RecentRow: View {
         }
         .contentShape(Rectangle())
         .padding(.vertical, 4)
+    }
+}
+
+extension DocumentPicker.Mode: Identifiable {
+    var id: Int {
+        switch self {
+        case .file: return 0
+        case .folder: return 1
+        }
     }
 }
 
