@@ -88,13 +88,34 @@ struct DocumentWorkspaceView: View {
 
     private func errorView(_ message: String) -> some View {
         NavigationStack {
-            ContentUnavailableView {
-                Label("열 수 없음", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("뷰어로 열기") { mode = .viewer }
-                Button("닫기") { store.closeCurrent() }
+            Group {
+                if #available(iOS 17.0, *) {
+                    ContentUnavailableView {
+                        Label("열 수 없음", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(message)
+                    } actions: {
+                        Button("뷰어로 열기") { mode = .viewer }
+                        Button("닫기") { store.closeCurrent() }
+                    }
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.secondary)
+                        Text("열 수 없음").font(.title2.bold())
+                        Text(message)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        VStack(spacing: 8) {
+                            Button("뷰어로 열기") { mode = .viewer }
+                            Button("닫기") { store.closeCurrent() }
+                        }
+                        .padding(.top, 4)
+                    }
+                    .padding()
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
