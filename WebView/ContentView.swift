@@ -49,7 +49,7 @@ struct ContentView: View {
             .ignoresSafeArea()
         }
         .fullScreenCover(item: $store.current) { document in
-            DocumentWorkspaceView(document: document)
+            BrowserView(document: document)
                 .environmentObject(store)
         }
         .alert(
@@ -114,7 +114,7 @@ struct ContentView: View {
                 .foregroundStyle(.tint)
             Text("저장된 HTML 파일 열기")
                 .font(.title2.bold())
-            Text("‘열기’로 Files 앱의 HTML 파일이나 폴더를 선택하면\nSafari 와 동일하게 표시됩니다.\nreveal.js 슬라이드라면 ‘편집’ 버튼으로 PowerPoint처럼\n편집할 수도 있습니다.")
+            Text("‘열기’로 Files 앱의 HTML 파일이나 폴더를 선택하면\nSafari 와 동일하게 표시됩니다.\n이미지·CSS·JS 가 함께 있는 페이지는 ‘폴더 열기’를 사용하세요.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

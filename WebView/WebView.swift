@@ -1,24 +1,6 @@
 import SwiftUI
 import WebKit
 
-/// reveal.js 등 발표 슬라이드에서 키보드(←/→·스페이스) 입력을 받을 수 있게 한다.
-final class PresentationWebView: WKWebView {
-    override var canBecomeFirstResponder: Bool { true }
-
-    override init(frame: CGRect, configuration: WKWebViewConfiguration) {
-        super.init(frame: frame, configuration: configuration)
-        // reveal.js 가 자체 뷰포트를 쓰므로 WKWebView 스크롤과 충돌하지 않게 끈다.
-        scrollView.isScrollEnabled = false
-        scrollView.bounces = false
-        scrollView.contentInsetAdjustmentBehavior = .never
-        // 가로 스와이프를 브라우저 뒤로/앞으로 제스처가 가로채지 않게 끈다.
-        allowsBackForwardNavigationGestures = false
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError() }
-}
-
 /// WKWebView 를 소유하고 로딩 상태를 SwiftUI 로 노출하는 모델.
 /// WKWebView 는 Safari 와 동일한 WebKit 엔진을 사용하므로 렌더링 결과가 같다.
 @MainActor
@@ -32,7 +14,6 @@ final class WebViewModel: NSObject, ObservableObject, WKNavigationDelegate {
     @Published var pageTitle: String = ""
     @Published var currentURL: URL?
     @Published var errorMessage: String?
-    @Published var isRevealPresentation = false
 
     private var observers: [NSKeyValueObservation] = []
 
@@ -42,10 +23,11 @@ final class WebViewModel: NSObject, ObservableObject, WKNavigationDelegate {
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
 
-        webView = PresentationWebView(frame: .zero, configuration: configuration)
+        webView = WKWebView(frame: .zero, configuration: configuration)
         super.init()
 
         webView.navigationDelegate = self
+        webView.allowsBackForwardNavigationGestures = true
 
         if #available(iOS 16.4, *) {
             webView.isInspectable = true
@@ -77,20 +59,12 @@ final class WebViewModel: NSObject, ObservableObject, WKNavigationDelegate {
     /// HTML 이 참조하는 CSS·JS·이미지·다른 HTML 등 상대경로 리소스가 함께 로드된다.
     func load(fileURL: URL, readAccessURL: URL) {
         errorMessage = nil
-        isRevealPresentation = false
         let file = fileURL.standardizedFileURL
         let bundle = file.deletingLastPathComponent()
         let access = Self.resolvedReadAccess(for: file, readAccessURL: readAccessURL)
-        // vendor/ 등 상대경로 리소스는 HTML 과 같은 bundle 폴더 기준.
+        // 상대경로 리소스는 HTML 과 같은 bundle 폴더 기준.
         let readAccess = Self.pathContains(access, bundle) ? access : bundle
         webView.loadFileURL(file, allowingReadAccessTo: readAccess)
-    }
-
-    /// 메모리상 HTML 을 로드한다. 편집 미리보기처럼 file URL 샌드박스 문제를 피할 때 사용.
-    func load(html: String, baseURL: URL) {
-        errorMessage = nil
-        isRevealPresentation = false
-        webView.loadHTMLString(html, baseURL: baseURL.standardizedFileURL)
     }
 
     private static func resolvedReadAccess(for fileURL: URL, readAccessURL: URL) -> URL {
@@ -115,47 +89,10 @@ final class WebViewModel: NSObject, ObservableObject, WKNavigationDelegate {
     func goBack() { webView.goBack() }
     func goForward() { webView.goForward() }
 
-    /// reveal.js 슬라이드 이전. reveal 이 없으면 브라우저 뒤로.
-    func slidePrevious() {
-        webView.evaluateJavaScript(Self.slidePreviousJS) { [weak self] result, _ in
-            guard let self else { return }
-            Task { @MainActor in
-                switch result as? String {
-                case "first", "none":
-                    self.goBack()
-                default:
-                    break
-                }
-            }
-        }
-    }
-
-    /// reveal.js 슬라이드 다음. reveal 이 없으면 브라우저 앞으로.
-    func slideNext() {
-        webView.evaluateJavaScript(Self.slideNextJS) { [weak self] result, _ in
-            guard let self else { return }
-            Task { @MainActor in
-                if result as? String == "none" { self.goForward() }
-            }
-        }
-    }
-
-    /// reveal.js 전체화면(가능한 경우)과 연동.
-    func togglePresentationFullscreen(active: Bool) {
-        let js = active ? Self.revealEnterFullscreenJS : Self.revealExitFullscreenJS
-        webView.evaluateJavaScript(js, completionHandler: nil)
-    }
-
     // MARK: - WKNavigationDelegate
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         errorMessage = nil
-        webView.becomeFirstResponder()
-        detectRevealPresentation()
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            if !isRevealPresentation { detectRevealPresentation() }
-        }
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -168,24 +105,6 @@ final class WebViewModel: NSObject, ObservableObject, WKNavigationDelegate {
         errorMessage = error.localizedDescription
     }
 
-    private func detectRevealPresentation() {
-        webView.evaluateJavaScript(Self.revealStateJS) { [weak self] result, _ in
-            Task { @MainActor in
-                switch result as? String {
-                case "ready":
-                    self?.isRevealPresentation = true
-                case "missing":
-                    self?.isRevealPresentation = false
-                    self?.errorMessage =
-                        "슬라이드 엔진(reveal.js)을 불러오지 못했습니다. "
-                        + "AuSom-PU 폴더에 vendor/reveal.js 가 있는지 확인하세요."
-                default:
-                    self?.isRevealPresentation = false
-                }
-            }
-        }
-    }
-
     private func shouldReportNavigationError(_ error: Error) -> Bool {
         let nsError = error as NSError
         if nsError.code == NSURLErrorCancelled { return false }
@@ -194,51 +113,6 @@ final class WebViewModel: NSObject, ObservableObject, WKNavigationDelegate {
         }
         return true
     }
-
-    private static let revealStateJS = """
-        (function() {
-            if (typeof Reveal !== 'undefined' && Reveal.isReady && Reveal.isReady()) return 'ready';
-            if (document.querySelector('.reveal')) return 'missing';
-            return 'none';
-        })()
-        """
-
-    private static let slidePreviousJS = """
-        (function() {
-            if (typeof Reveal !== 'undefined' && Reveal.isReady && Reveal.isReady()) {
-                if (Reveal.isFirstSlide()) return 'first';
-                Reveal.prev();
-                return 'reveal';
-            }
-            return 'none';
-        })()
-        """
-
-    private static let slideNextJS = """
-        (function() {
-            if (typeof Reveal !== 'undefined' && Reveal.isReady && Reveal.isReady()) {
-                Reveal.next();
-                return 'reveal';
-            }
-            return 'none';
-        })()
-        """
-
-    private static let revealEnterFullscreenJS = """
-        (function() {
-            if (typeof Reveal !== 'undefined' && Reveal.isReady && Reveal.isReady() && !Reveal.isFullscreen()) {
-                Reveal.toggleFullscreen();
-            }
-        })()
-        """
-
-    private static let revealExitFullscreenJS = """
-        (function() {
-            if (typeof Reveal !== 'undefined' && Reveal.isReady && Reveal.isReady() && Reveal.isFullscreen()) {
-                Reveal.toggleFullscreen();
-            }
-        })()
-        """
 }
 
 /// WKWebView 를 SwiftUI 에 끼워 넣는 래퍼.

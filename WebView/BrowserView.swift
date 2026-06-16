@@ -3,8 +3,6 @@ import SwiftUI
 /// 선택한 HTML 문서를 Safari 스타일의 크롬(상·하단 도구막대)과 함께 보여주는 뷰어.
 struct BrowserView: View {
     let document: OpenedDocument
-    /// 편집 가능한 문서일 때만 전달된다. nil 이면 편집 버튼을 숨긴다.
-    var onEdit: (() -> Void)? = nil
 
     @EnvironmentObject var store: RecentsStore
     @StateObject private var model = WebViewModel()
@@ -61,15 +59,8 @@ struct BrowserView: View {
         }
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: 16) {
-                if let onEdit {
-                    Button(action: onEdit) {
-                        Image(systemName: "square.and.pencil")
-                    }
-                    .accessibilityLabel("편집")
-                }
-
                 Button {
-                    toggleFullscreen()
+                    isFullscreen.toggle()
                 } label: {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                 }
@@ -83,23 +74,23 @@ struct BrowserView: View {
             }
         }
 
-        // 하단: reveal.js 슬라이드 또는 브라우저 기록 이동.
+        // 하단: 브라우저 기록 이동 + 공유.
         ToolbarItemGroup(placement: .bottomBar) {
             Button {
-                model.slidePrevious()
+                model.goBack()
             } label: {
                 Image(systemName: "chevron.left")
             }
-            .disabled(!model.isRevealPresentation && !model.canGoBack)
+            .disabled(!model.canGoBack)
 
             Spacer()
 
             Button {
-                model.slideNext()
+                model.goForward()
             } label: {
                 Image(systemName: "chevron.right")
             }
-            .disabled(!model.isRevealPresentation && !model.canGoForward)
+            .disabled(!model.canGoForward)
 
             Spacer()
 
@@ -116,7 +107,7 @@ struct BrowserView: View {
             HStack {
                 Spacer()
                 Button {
-                    toggleFullscreen()
+                    isFullscreen.toggle()
                 } label: {
                     Image(systemName: "arrow.down.right.and.arrow.up.left")
                         .font(.body.weight(.semibold))
@@ -128,11 +119,6 @@ struct BrowserView: View {
             }
             Spacer()
         }
-    }
-
-    private func toggleFullscreen() {
-        isFullscreen.toggle()
-        model.togglePresentationFullscreen(active: isFullscreen)
     }
 
     private func errorBanner(_ message: String) -> some View {
