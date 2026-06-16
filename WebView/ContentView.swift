@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var store: RecentsStore
     @State private var pickerMode: DocumentPicker.Mode?
+    @State private var showClearConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -13,26 +14,32 @@ struct ContentView: View {
                     recentsList
                 }
             }
-            .navigationTitle("HTML 뷰어")
+            .navigationTitle("슬라이드 편집기")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    openMenu {
-                        Image(systemName: "plus")
-                    }
-                }
                 if !store.recents.isEmpty {
                     ToolbarItem(placement: .topBarLeading) {
-                        Menu {
-                            Button(role: .destructive) {
-                                store.clearAll()
-                            } label: {
-                                Label("최근 목록 비우기", systemImage: "trash")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
+                        Button("목록비우기", role: .destructive) {
+                            showClearConfirm = true
                         }
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    openMenu {
+                        Text("열기")
+                    }
+                }
+            }
+            .confirmationDialog(
+                "목록을 모두 비우시겠습니까?",
+                isPresented: $showClearConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("목록비우기", role: .destructive) {
+                    store.clearAll()
+                }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("가져온 파일 사본도 함께 삭제됩니다.")
             }
         }
         .sheet(item: $pickerMode) { mode in
@@ -42,7 +49,7 @@ struct ContentView: View {
             .ignoresSafeArea()
         }
         .fullScreenCover(item: $store.current) { document in
-            BrowserView(document: document)
+            DocumentWorkspaceView(document: document)
                 .environmentObject(store)
         }
         .alert(
@@ -60,7 +67,7 @@ struct ContentView: View {
     }
 
     /// 파일/폴더 열기 선택 메뉴.
-    private func openMenu<Label: View>(@ViewBuilder label: () -> Label) -> some View {
+    private func openMenu<MenuLabel: View>(@ViewBuilder label: () -> MenuLabel) -> some View {
         Menu {
             Button {
                 pickerMode = .file
@@ -81,7 +88,7 @@ struct ContentView: View {
 
     private var recentsList: some View {
         List {
-            Section("최근 파일") {
+            Section("최근 프로젝트") {
                 ForEach(store.recents) { item in
                     Button {
                         store.open(recent: item)
@@ -102,12 +109,12 @@ struct ContentView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "safari")
+            Image(systemName: "rectangle.stack.badge.play")
                 .font(.system(size: 64))
                 .foregroundStyle(.tint)
-            Text("저장된 HTML 파일 열기")
+            Text("슬라이드 HTML 편집")
                 .font(.title2.bold())
-            Text("‘＋’를 눌러 Files 앱의 HTML 파일이나 폴더를 선택하세요.\n이미지·CSS·JS 가 함께 있는 페이지는 ‘폴더 열기’를 사용하면\n리소스까지 모두 표시됩니다.\n다른 앱의 공유 메뉴에서 ‘HTML 뷰어’를 선택해도 됩니다.")
+            Text("‘열기’ → **폴더 열기**로 발표자료 폴더를 선택하세요.\nreveal.js 슬라이드(full.html 등)를 PowerPoint처럼 편집할 수 있습니다.\n예: AuSom-PU (index.html·full.html·vendor/reveal.js)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -128,7 +135,7 @@ private struct RecentRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "doc.richtext")
+            Image(systemName: "rectangle.stack")
                 .font(.title2)
                 .foregroundStyle(.tint)
                 .frame(width: 32)

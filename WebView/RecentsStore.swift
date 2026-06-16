@@ -24,6 +24,10 @@ struct RecentItem: Identifiable, Codable, Equatable {
 struct OpenedDocument: Identifiable, Equatable {
     let id = UUID()
     let url: URL
+    /// `loadFileURL` 에 넘길 읽기 허용 범위(가져온 폴더 루트).
+    /// HTML 과 CSS·JS·이미지·링크된 다른 HTML 이 서로 다른 하위 폴더에 있어도
+    /// 모두 접근할 수 있게 import 루트 전체를 연다.
+    let readAccessURL: URL
 
     static func == (lhs: OpenedDocument, rhs: OpenedDocument) -> Bool { lhs.id == rhs.id }
 }
@@ -60,7 +64,7 @@ final class RecentsStore: ObservableObject {
                 entryRelativePath: result.entryRelativePath
             )
             upsert(item)
-            current = OpenedDocument(url: result.entryURL)
+            current = OpenedDocument(url: result.entryURL, readAccessURL: result.readAccessURL)
         } catch {
             errorMessage = "파일을 열 수 없습니다: \(error.localizedDescription)"
         }
@@ -68,9 +72,8 @@ final class RecentsStore: ObservableObject {
 
     /// 최근 목록에서 다시 연다.
     func open(recent item: RecentItem) {
-        let entry = importedRoot
-            .appendingPathComponent(item.importID, isDirectory: true)
-            .appendingPathComponent(item.entryRelativePath)
+        let importFolder = importedRoot.appendingPathComponent(item.importID, isDirectory: true)
+        let entry = importFolder.appendingPathComponent(item.entryRelativePath)
 
         guard FileManager.default.fileExists(atPath: entry.path) else {
             // 사본이 사라졌으면 목록에서 제거.
@@ -82,7 +85,7 @@ final class RecentsStore: ObservableObject {
         var updated = item
         updated.lastOpened = Date()
         upsert(updated)
-        current = OpenedDocument(url: entry)
+        current = OpenedDocument(url: entry, readAccessURL: importFolder)
     }
 
     func closeCurrent() {
@@ -95,6 +98,7 @@ final class RecentsStore: ObservableObject {
         let importID: String
         let entryRelativePath: String
         let entryURL: URL
+        let readAccessURL: URL
         let displayName: String
     }
 
@@ -112,20 +116,38 @@ final class RecentsStore: ObservableObject {
         var isDir: ObjCBool = false
         fm.fileExists(atPath: source.path, isDirectory: &isDir)
 
-        let destination = importFolder.appendingPathComponent(source.lastPathComponent)
-        try coordinatedCopy(from: source, to: destination)
-
         let entryURL: URL
         let displayName: String
+
         if isDir.boolValue {
-            // 폴더 안에서 진입 HTML 을 찾는다.
+            let destination = importFolder.appendingPathComponent(source.lastPathComponent)
+            try coordinatedCopy(from: source, to: destination)
+
             guard let found = findEntryHTML(in: destination) else {
                 try? fm.removeItem(at: importFolder)
                 throw ViewerError.noHTMLInFolder
             }
             entryURL = found
             displayName = source.lastPathComponent
+        } else if let bundleRoot = bundleRoot(containing: source) {
+            // AuSom-PU 처럼 HTML·CSS·JS·다른 HTML 이 같은 폴더에 묶인 경우
+            // 파일 하나만 고르더라도 폴더 전체를 복사한다.
+            let bundleDestination = importFolder.appendingPathComponent(bundleRoot.lastPathComponent)
+            try coordinatedCopy(from: bundleRoot, to: bundleDestination)
+
+            let copiedFile = bundleDestination.appendingPathComponent(source.lastPathComponent)
+            if fm.fileExists(atPath: copiedFile.path) {
+                entryURL = copiedFile
+            } else if let found = findEntryHTML(in: bundleDestination) {
+                entryURL = found
+            } else {
+                try? fm.removeItem(at: importFolder)
+                throw ViewerError.noHTMLInFolder
+            }
+            displayName = bundleRoot.lastPathComponent
         } else {
+            let destination = importFolder.appendingPathComponent(source.lastPathComponent)
+            try coordinatedCopy(from: source, to: destination)
             entryURL = destination
             displayName = source.lastPathComponent
         }
@@ -135,6 +157,7 @@ final class RecentsStore: ObservableObject {
             importID: importID,
             entryRelativePath: entryRelativePath,
             entryURL: entryURL,
+            readAccessURL: importFolder,
             displayName: displayName
         )
     }
@@ -157,6 +180,26 @@ final class RecentsStore: ObservableObject {
         }
         if let error = coordinatorError { throw error }
         if let error = copyError { throw error }
+    }
+
+    /// HTML·JS·CSS 등이 함께 있는 발표자료 폴더(AuSom-PU 등)인지 판별한다.
+    private func bundleRoot(containing file: URL) -> URL? {
+        let parent = file.deletingLastPathComponent()
+        let fm = FileManager.default
+
+        if fm.fileExists(atPath: parent.appendingPathComponent("vendor").path) {
+            return parent
+        }
+
+        let htmlExtensions = Set(["html", "htm", "xhtml"])
+        let htmlCount = (try? fm.contentsOfDirectory(at: parent, includingPropertiesForKeys: nil))?
+            .filter { htmlExtensions.contains($0.pathExtension.lowercased()) }
+            .count ?? 0
+        if htmlCount > 1 {
+            return parent
+        }
+
+        return nil
     }
 
     private func findEntryHTML(in folder: URL) -> URL? {

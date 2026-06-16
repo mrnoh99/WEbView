@@ -1,27 +1,28 @@
 import SwiftUI
 
-/// 선택한 HTML 문서를 Safari 스타일의 크롬(상·하단 도구막대)과 함께 보여주는 뷰어.
-struct BrowserView: View {
-    let document: OpenedDocument
+/// 편집 중인 슬라이드 덱을 발표 모드로 미리본다.
+struct SlideDeckPreviewView: View {
+    @ObservedObject var editorModel: SlideEditorViewModel
 
-    @EnvironmentObject var store: RecentsStore
-    @StateObject private var model = WebViewModel()
-    @State private var showShare = false
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var webModel = WebViewModel()
     @State private var isFullscreen = false
+
+    private var document: RevealSlideDocument { editorModel.document }
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                WebView(model: model)
+                WebView(model: webModel)
                     .ignoresSafeArea(edges: isFullscreen ? .all : .bottom)
 
-                if model.isLoading, !isFullscreen {
-                    ProgressView(value: model.progress)
+                if webModel.isLoading, !isFullscreen {
+                    ProgressView(value: webModel.progress)
                         .progressViewStyle(.linear)
                         .tint(.accentColor)
                 }
 
-                if let message = model.errorMessage {
+                if let message = webModel.errorMessage {
                     errorBanner(message)
                 }
 
@@ -29,33 +30,46 @@ struct BrowserView: View {
                     fullscreenExitButton
                 }
             }
-            .navigationTitle(displayTitle)
+            .navigationTitle(document.displayName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(isFullscreen ? .hidden : .visible, for: .navigationBar)
             .toolbar(isFullscreen ? .hidden : .visible, for: .bottomBar)
             .toolbar { toolbarContent }
             .statusBarHidden(isFullscreen)
         }
-        .onAppear {
-            model.load(fileURL: document.url, readAccessURL: document.readAccessURL)
-        }
-        .sheet(isPresented: $showShare) {
-            ShareSheet(items: [document.url])
-        }
+        .onAppear { loadPresentation() }
     }
 
-    private var displayTitle: String {
-        model.pageTitle.isEmpty ? document.url.lastPathComponent : model.pageTitle
-    }
+    private func loadPresentation() {
+        do {
+            try document.write()
+            editorModel.isDirty = false
+        } catch {
+            webModel.errorMessage = "저장 실패: \(error.localizedDescription)"
+            return
+        }
 
-    // MARK: - 도구막대
+        let file = document.fileURL.standardizedFileURL
+        guard FileManager.default.fileExists(atPath: file.path) else {
+            webModel.errorMessage = "HTML 파일을 찾을 수 없습니다."
+            return
+        }
+
+        let bundleFolder = file.deletingLastPathComponent()
+        let vendorJS = bundleFolder.appendingPathComponent("vendor/reveal.js/reveal.min.js")
+        guard FileManager.default.fileExists(atPath: vendorJS.path) else {
+            webModel.errorMessage =
+                "vendor/reveal.js 가 없습니다. ‘열기 → 폴더 열기’로 AuSom-PU 폴더 전체를 다시 선택하세요."
+            return
+        }
+
+        webModel.load(fileURL: file, readAccessURL: bundleFolder)
+    }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Button("완료") {
-                store.closeCurrent()
-            }
+            Button("닫기") { dismiss() }
         }
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: 16) {
@@ -67,38 +81,29 @@ struct BrowserView: View {
                 .accessibilityLabel("전체화면")
 
                 Button {
-                    if model.isLoading { model.stop() } else { model.reload() }
+                    if webModel.isLoading { webModel.stop() } else { loadPresentation() }
                 } label: {
-                    Image(systemName: model.isLoading ? "xmark" : "arrow.clockwise")
+                    Image(systemName: webModel.isLoading ? "xmark" : "arrow.clockwise")
                 }
             }
         }
 
-        // 하단: reveal.js 슬라이드 또는 브라우저 기록 이동.
         ToolbarItemGroup(placement: .bottomBar) {
-            Button {
-                model.slidePrevious()
-            } label: {
+            Button { webModel.slidePrevious() } label: {
                 Image(systemName: "chevron.left")
             }
-            .disabled(!model.isRevealPresentation && !model.canGoBack)
+            .disabled(!webModel.isRevealPresentation && !webModel.canGoBack)
 
             Spacer()
 
-            Button {
-                model.slideNext()
-            } label: {
+            Button { webModel.slideNext() } label: {
                 Image(systemName: "chevron.right")
             }
-            .disabled(!model.isRevealPresentation && !model.canGoForward)
+            .disabled(!webModel.isRevealPresentation && !webModel.canGoForward)
 
             Spacer()
 
-            Button {
-                showShare = true
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-            }
+            Color.clear.frame(width: 28, height: 28)
         }
     }
 
@@ -106,9 +111,7 @@ struct BrowserView: View {
         VStack {
             HStack {
                 Spacer()
-                Button {
-                    toggleFullscreen()
-                } label: {
+                Button { toggleFullscreen() } label: {
                     Image(systemName: "arrow.down.right.and.arrow.up.left")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.white)
@@ -123,7 +126,7 @@ struct BrowserView: View {
 
     private func toggleFullscreen() {
         isFullscreen.toggle()
-        model.togglePresentationFullscreen(active: isFullscreen)
+        webModel.togglePresentationFullscreen(active: isFullscreen)
     }
 
     private func errorBanner(_ message: String) -> some View {

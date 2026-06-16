@@ -14,6 +14,12 @@
 		B0000000000000000005 /* RecentsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0000000000000000005 /* RecentsStore.swift */; };
 		B0000000000000000006 /* DocumentPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0000000000000000006 /* DocumentPicker.swift */; };
 		B0000000000000000007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F0000000000000000007 /* Assets.xcassets */; };
+		B0000000000000000008 /* RevealSlideDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = F000000000000000000A /* RevealSlideDocument.swift */; };
+		B0000000000000000009 /* SlideEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F000000000000000000B /* SlideEditorViewModel.swift */; };
+		B000000000000000000A /* SlideEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F000000000000000000C /* SlideEditorView.swift */; };
+		B000000000000000000B /* DocumentWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F000000000000000000D /* DocumentWorkspaceView.swift */; };
+		B000000000000000000C /* SlideLayoutMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F000000000000000000E /* SlideLayoutMetrics.swift */; };
+		B000000000000000000D /* SlideDeckPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F000000000000000000F /* SlideDeckPreviewView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +32,12 @@
 		F0000000000000000007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F0000000000000000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F0000000000000000009 /* WebView.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WebView.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F000000000000000000A /* RevealSlideDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevealSlideDocument.swift; sourceTree = "<group>"; };
+		F000000000000000000B /* SlideEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideEditorViewModel.swift; sourceTree = "<group>"; };
+		F000000000000000000C /* SlideEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideEditorView.swift; sourceTree = "<group>"; };
+		F000000000000000000D /* DocumentWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentWorkspaceView.swift; sourceTree = "<group>"; };
+		F000000000000000000E /* SlideLayoutMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideLayoutMetrics.swift; sourceTree = "<group>"; };
+		F000000000000000000F /* SlideDeckPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideDeckPreviewView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,6 +68,12 @@
 				F0000000000000000004 /* WebView.swift */,
 				F0000000000000000005 /* RecentsStore.swift */,
 				F0000000000000000006 /* DocumentPicker.swift */,
+				F000000000000000000A /* RevealSlideDocument.swift */,
+				F000000000000000000B /* SlideEditorViewModel.swift */,
+				F000000000000000000C /* SlideEditorView.swift */,
+				F000000000000000000D /* DocumentWorkspaceView.swift */,
+				F000000000000000000E /* SlideLayoutMetrics.swift */,
+				F000000000000000000F /* SlideDeckPreviewView.swift */,
 				F0000000000000000007 /* Assets.xcassets */,
 				F0000000000000000008 /* Info.plist */,
 			);
@@ -145,6 +163,12 @@
 				B0000000000000000004 /* WebView.swift in Sources */,
 				B0000000000000000005 /* RecentsStore.swift in Sources */,
 				B0000000000000000006 /* DocumentPicker.swift in Sources */,
+				B0000000000000000008 /* RevealSlideDocument.swift in Sources */,
+				B0000000000000000009 /* SlideEditorViewModel.swift in Sources */,
+				B000000000000000000A /* SlideEditorView.swift in Sources */,
+				B000000000000000000B /* DocumentWorkspaceView.swift in Sources */,
+				B000000000000000000C /* SlideLayoutMetrics.swift in Sources */,
+				B000000000000000000D /* SlideDeckPreviewView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -208,10 +232,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9AWEB9NYHH;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = WebView/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -232,10 +257,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9AWEB9NYHH;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = WebView/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
