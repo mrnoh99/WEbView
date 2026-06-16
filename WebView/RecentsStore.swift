@@ -5,15 +5,29 @@ import Foundation
 struct RecentItem: Identifiable, Codable, Equatable {
     var id = UUID()
     var name: String
+    /// 파일이 속한 폴더 등 부가 설명(목록에서 같은 폴더의 다른 파일과 구분).
+    var subtitle: String
+    /// 원본(선택한 파일/폴더)의 경로 — 최근 목록 중복 제거 기준.
+    var sourcePath: String
     /// `Documents/Imported/` 아래의 고유 폴더 이름.
     var importID: String
     /// import 폴더 기준 진입 HTML 의 상대 경로.
     var entryRelativePath: String
     var lastOpened: Date
 
-    init(id: UUID = UUID(), name: String, importID: String, entryRelativePath: String, lastOpened: Date = Date()) {
+    init(
+        id: UUID = UUID(),
+        name: String,
+        subtitle: String = "",
+        sourcePath: String,
+        importID: String,
+        entryRelativePath: String,
+        lastOpened: Date = Date()
+    ) {
         self.id = id
         self.name = name
+        self.subtitle = subtitle
+        self.sourcePath = sourcePath
         self.importID = importID
         self.entryRelativePath = entryRelativePath
         self.lastOpened = lastOpened
@@ -38,7 +52,7 @@ final class RecentsStore: ObservableObject {
     @Published var current: OpenedDocument?
     @Published var errorMessage: String?
 
-    private let key = "recents.v2"
+    private let key = "recents.v3"
     private let maxRecents = 50
 
     private var documentsURL: URL {
@@ -60,6 +74,8 @@ final class RecentsStore: ObservableObject {
             let result = try importCopy(of: url)
             let item = RecentItem(
                 name: result.displayName,
+                subtitle: result.subtitle,
+                sourcePath: result.sourcePath,
                 importID: result.importID,
                 entryRelativePath: result.entryRelativePath
             )
@@ -100,6 +116,9 @@ final class RecentsStore: ObservableObject {
         let entryURL: URL
         let readAccessURL: URL
         let displayName: String
+        let subtitle: String
+        /// 원본 경로 — 최근 목록 중복 제거 기준.
+        let sourcePath: String
     }
 
     private func importCopy(of source: URL) throws -> ImportResult {
@@ -118,6 +137,7 @@ final class RecentsStore: ObservableObject {
 
         let entryURL: URL
         let displayName: String
+        let subtitle: String
 
         if isDir.boolValue {
             let destination = importFolder.appendingPathComponent(source.lastPathComponent)
@@ -128,7 +148,9 @@ final class RecentsStore: ObservableObject {
                 throw ViewerError.noHTMLInFolder
             }
             entryURL = found
+            // 폴더를 골랐으므로 폴더명을 제목으로, 진입 파일명을 부제로.
             displayName = source.lastPathComponent
+            subtitle = found.lastPathComponent
         } else if let bundleRoot = bundleRoot(containing: source) {
             // AuSom-PU 처럼 HTML·CSS·JS·다른 HTML 이 같은 폴더에 묶인 경우
             // 파일 하나만 고르더라도 폴더 전체를 복사한다.
@@ -144,12 +166,15 @@ final class RecentsStore: ObservableObject {
                 try? fm.removeItem(at: importFolder)
                 throw ViewerError.noHTMLInFolder
             }
-            displayName = bundleRoot.lastPathComponent
+            // 고른 ‘파일’을 제목으로, 묶음 폴더명을 부제로 → 같은 폴더의 파일도 따로 구분.
+            displayName = source.lastPathComponent
+            subtitle = bundleRoot.lastPathComponent
         } else {
             let destination = importFolder.appendingPathComponent(source.lastPathComponent)
             try coordinatedCopy(from: source, to: destination)
             entryURL = destination
             displayName = source.lastPathComponent
+            subtitle = ""
         }
 
         let entryRelativePath = relativePath(of: entryURL, base: importFolder)
@@ -158,7 +183,9 @@ final class RecentsStore: ObservableObject {
             entryRelativePath: entryRelativePath,
             entryURL: entryURL,
             readAccessURL: importFolder,
-            displayName: displayName
+            displayName: displayName,
+            subtitle: subtitle,
+            sourcePath: source.path
         )
     }
 
@@ -250,11 +277,12 @@ final class RecentsStore: ObservableObject {
     }
 
     private func upsert(_ item: RecentItem) {
-        // 같은 이름의 기존 항목이 있으면 사본을 정리하고 교체.
-        for existing in recents where existing.name == item.name && existing.id != item.id {
+        // 같은 원본을 다시 가져온 경우에만 기존 사본을 정리하고 교체.
+        // (이름이 같아도 원본 경로가 다르면 별도 항목으로 유지 → 파일별로 열람 가능)
+        for existing in recents where existing.sourcePath == item.sourcePath && existing.id != item.id {
             deleteImportFolder(for: existing)
         }
-        recents.removeAll { $0.name == item.name && $0.id != item.id }
+        recents.removeAll { $0.sourcePath == item.sourcePath && $0.id != item.id }
         recents.removeAll { $0.id == item.id }
         recents.insert(item, at: 0)
         recents.sort { $0.lastOpened > $1.lastOpened }

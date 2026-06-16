@@ -144,9 +144,15 @@ private struct RecentRow: View {
                     .font(.body)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
+                if !item.subtitle.isEmpty {
+                    Label(item.subtitle, systemImage: "folder")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 Text(item.lastOpened, style: .date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
             Spacer()
             Image(systemName: "chevron.right")
